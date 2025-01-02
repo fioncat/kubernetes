@@ -115,6 +115,7 @@ type VerifyOptionFunc func() (x509.VerifyOptions, bool)
 type Authenticator struct {
 	verifyOptionsFn VerifyOptionFunc
 	user            UserConversion
+	blacklist       *Blacklist
 }
 
 // New returns a request.Authenticator that verifies client certificates using the provided
@@ -126,7 +127,12 @@ func New(opts x509.VerifyOptions, user UserConversion) *Authenticator {
 // NewDynamic returns a request.Authenticator that verifies client certificates using the provided
 // VerifyOptionFunc (which may be dynamic), and converts valid certificate chains into user.Info using the provided UserConversion
 func NewDynamic(verifyOptionsFn VerifyOptionFunc, user UserConversion) *Authenticator {
-	return &Authenticator{verifyOptionsFn, user}
+	return &Authenticator{verifyOptionsFn, user, nil}
+}
+
+func (a *Authenticator) WithBlacklist(bl *Blacklist) *Authenticator {
+	a.blacklist = bl
+	return a
 }
 
 // AuthenticateRequest authenticates the request using presented client certificates
@@ -168,6 +174,11 @@ func (a *Authenticator) AuthenticateRequest(req *http.Request) (*authenticator.R
 		}
 
 		if ok {
+			blocked := a.blacklist.isBlock(user, req)
+			if blocked {
+				// This user is blocked by x509 blacklist
+				return nil, false, nil
+			}
 			return user, ok, err
 		}
 	}

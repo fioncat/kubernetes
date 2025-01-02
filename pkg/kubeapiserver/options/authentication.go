@@ -45,15 +45,16 @@ import (
 
 // BuiltInAuthenticationOptions contains all build-in authentication options for API Server
 type BuiltInAuthenticationOptions struct {
-	APIAudiences    []string
-	Anonymous       *AnonymousAuthenticationOptions
-	BootstrapToken  *BootstrapTokenAuthenticationOptions
-	ClientCert      *genericoptions.ClientCertAuthenticationOptions
-	OIDC            *OIDCAuthenticationOptions
-	RequestHeader   *genericoptions.RequestHeaderAuthenticationOptions
-	ServiceAccounts *ServiceAccountAuthenticationOptions
-	TokenFile       *TokenFileAuthenticationOptions
-	WebHook         *WebHookAuthenticationOptions
+	APIAudiences      []string
+	Anonymous         *AnonymousAuthenticationOptions
+	BootstrapToken    *BootstrapTokenAuthenticationOptions
+	ClientCert        *genericoptions.ClientCertAuthenticationOptions
+	OIDC              *OIDCAuthenticationOptions
+	RequestHeader     *genericoptions.RequestHeaderAuthenticationOptions
+	ServiceAccounts   *ServiceAccountAuthenticationOptions
+	TokenFile         *TokenFileAuthenticationOptions
+	WebHook           *WebHookAuthenticationOptions
+	X509BlackListFile string
 
 	TokenSuccessCacheTTL time.Duration
 	TokenFailureCacheTTL time.Duration
@@ -372,6 +373,9 @@ func (o *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 		fs.DurationVar(&o.WebHook.CacheTTL, "authentication-token-webhook-cache-ttl", o.WebHook.CacheTTL,
 			"The duration to cache responses from the webhook token authenticator.")
 	}
+
+	fs.StringVar(&o.X509BlackListFile, "authentication-x509-blacklist-file", "", ""+
+		"A rule file to determine which users and IPs should be blocked when using x509 authentication (patched by UCloud)")
 }
 
 // ToAuthenticationConfig convert BuiltInAuthenticationOptions to kubeauthenticator.Config
@@ -445,6 +449,10 @@ func (o *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 				klog.Warningf("the webhook cache ttl of %s is shorter than the overall cache ttl of %s for failed token authentication attempts.", o.WebHook.CacheTTL, o.TokenFailureCacheTTL)
 			}
 		}
+	}
+
+	if o.X509BlackListFile != "" {
+		ret.X509BlackListFile = o.X509BlackListFile
 	}
 
 	return ret, nil

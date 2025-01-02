@@ -18,6 +18,7 @@ package authenticator
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -90,6 +91,8 @@ type Config struct {
 
 	// Optional field, custom dial function used to connect to webhook
 	CustomDial utilnet.DialFunc
+
+	X509BlackListFile string
 }
 
 // New returns an authenticator.Request or an error that supports the standard
@@ -115,6 +118,13 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 	// X509 methods
 	if config.ClientCAContentProvider != nil {
 		certAuth := x509.NewDynamic(config.ClientCAContentProvider.VerifyOptions, x509.CommonNameUserConversion)
+		if config.X509BlackListFile != "" {
+			blacklist, err := x509.ParseBlacklist(config.X509BlackListFile)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error parsing x509 blacklist file: %v", err)
+			}
+			certAuth = certAuth.WithBlacklist(blacklist)
+		}
 		authenticators = append(authenticators, certAuth)
 	}
 
